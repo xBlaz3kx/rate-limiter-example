@@ -3,10 +3,12 @@ package rate_limiter
 import (
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
-// LimiterConfig is the configuration for the rate limiter
-type LimiterConfig struct {
+// Configuration for the rate limiter
+type Config struct {
 
 	// Limit is the maximum number of requests allowed within the duration of the window
 	Limit int
@@ -20,27 +22,29 @@ type clientLimit struct {
 	requestCount int
 
 	// Time when the current window started
-	windowStart time.Time
+	windowStart *time.Time
 }
 
 // SlidingWindowRateLimiter is a sliding window rate limiter that limits the number of requests per user for a given time window.
 type SlidingWindowRateLimiter struct {
-	config LimiterConfig
+	config Config
 
 	// userLimits is a map of user IDs to their current request count and the time the window started
-	userLimits map[string]clientLimit // clientLimit is the
+	userLimits map[string]clientLimit
 
-	mu sync.Mutex
+	mu     sync.RWMutex
+	logger *zap.Logger
 }
 
 // NewSlidingWindowRateLimiter creates a new sliding window rate limiter with the provided configuration
 func NewSlidingWindowRateLimiter(opts ...Options) *SlidingWindowRateLimiter {
 	limiter := &SlidingWindowRateLimiter{
-		config: LimiterConfig{
+		config: Config{
 			Limit:    200,
 			Duration: time.Second * 5,
 		},
 		userLimits: make(map[string]clientLimit),
+		logger:     zap.L().Named("rate-limiter"),
 	}
 
 	// Apply options
@@ -52,66 +56,68 @@ func NewSlidingWindowRateLimiter(opts ...Options) *SlidingWindowRateLimiter {
 }
 
 // NewSlidingWindowRateLimiterFromConfig creates a new sliding window rate limiter with the provided configuration
-func NewSlidingWindowRateLimiterFromConfig(config LimiterConfig) *SlidingWindowRateLimiter {
+func NewSlidingWindowRateLimiterFromConfig(config Config) *SlidingWindowRateLimiter {
 	return &SlidingWindowRateLimiter{
 		config:     config,
 		userLimits: make(map[string]clientLimit),
+		logger:     zap.L().Named("rate-limiter"),
 	}
 }
 
 func (l *SlidingWindowRateLimiter) incrementRequestCount(userID string) {
-	// Get the current user limits
-	defaultLimit := clientLimit{
-		requestCount: 0,
-		windowStart:  time.Now(),
+	l.logger.Debug("Incrementing the number request")
+
+	// Get the current user rate limit
+	userLimits, exists := l.userLimits[userID]
+	if !exists {
+		// If the request limit does not exist, create a new entry
+		currentTime := time.Now()
+		l.userLimits[userID] = clientLimit{
+			requestCount: 0,
+			windowStart:  &currentTime,
+		}
+
+		userLimits = l.userLimits[userID]
 	}
 
-	userLimits, loaded := l.userLimits[userID]
-	if loaded {
-		l.userLimits[userID] = defaultLimit
-		userLimits = defaultLimit
-	}
-
-	// Increment the request count and update the
+	// Increment the request count and update
 	userLimits.requestCount++
 	l.userLimits[userID] = userLimits
 }
 
-func (l *SlidingWindowRateLimiter) resetRequestCount(userID string) {
-	// Reset the request count
-	defaultLimit := clientLimit{
-		requestCount: 0,
-		windowStart:  time.Now(),
-	}
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.userLimits[userID] = defaultLimit
-}
-
 func (l *SlidingWindowRateLimiter) IsLimited(userID string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.logger.Debug("Checking if user exceeds rate limit")
 
-	defer l.incrementRequestCount(userID)
+	l.mu.Lock()
+	defer func() {
+		l.incrementRequestCount(userID)
+		l.mu.Unlock()
+	}()
 
 	// Get the current user limits
-	userLimits, loaded := l.userLimits[userID]
-	if !loaded {
+	userLimits, exists := l.userLimits[userID]
+	if !exists {
 		return false
 	}
 
 	// Check if the user has exceeded the limit
-	if userLimits.requestCount > l.config.Limit {
+	if userLimits.requestCount >= l.config.Limit {
+
+		// Check if the window has expired
+		if userLimits.windowStart != nil && time.Since(*userLimits.windowStart) > l.config.Duration {
+			l.logger.Debug("Window expired, resetting request count")
+			// Reset the request count
+			currentTime := time.Now()
+			l.userLimits[userID] = clientLimit{
+				requestCount: 0,
+				windowStart:  &currentTime,
+			}
+
+			return false
+		}
+
 		return true
 	}
 
-	// Check if the window has expired
-	if time.Since(userLimits.windowStart) > l.config.Duration {
-		l.resetRequestCount(userID)
-	}
-
-	l.incrementRequestCount(userID)
 	return false
 }
