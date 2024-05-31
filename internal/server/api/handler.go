@@ -29,7 +29,6 @@ func (h *Handler) HandleRequest(ctx *gin.Context) {
 	} else {
 		ctx.JSON(http.StatusNoContent, nil)
 	}
-
 }
 
 type errorResponse struct {

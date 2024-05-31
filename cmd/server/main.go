@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -53,15 +52,14 @@ var rootCmd = &cobra.Command{
 			}
 		}()
 
-		// Wait for interrupt signal to gracefully shutdown the server with
-		// a timeout of 5 seconds.
+		// Wait for interrupt signal to gracefully shutdown the server with a timeout of 5 seconds.
 		<-quit
 		logger.Info("Shutting down server")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Fatal("Server Shutdown:", err)
+			logger.Fatal("Server forced to shutdown", zap.Error(err))
 		}
 
 		<-ctx.Done()
