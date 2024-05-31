@@ -1,0 +1,18 @@
+services:
+  server:
+    hostname: server
+    image: server
+    build:
+      context: .
+      dockerfile: ./build/server/Dockerfile
+      target: app
+    ports:
+      - "8080:80"
+
+  client:
+    image: client
+    command: cli http://server:80 # --numWorkers=4 --numClients=2
+    build:
+      context: .
+      dockerfile: ./build/client/Dockerfile
+      target: app

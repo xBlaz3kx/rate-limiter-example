@@ -1,0 +1,36 @@
+name: "Build Docker image"
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docker-compose.yaml'
+      - '*.md'
+    tags:
+      - v*
+
+  pull_request:
+    types: [ opened, synchronize ]
+    branches:
+      - master
+    paths-ignore:
+      - '*.md'
+      - 'docker-compose.yaml'
+  workflow_dispatch:
+
+jobs:
+  build-server:
+    name: "Build server"
+    uses: ./.github/workflows/build.yaml
+    with:
+      service: server
+      docker_repository: server
+      dockerfile: "./build/server/Dockerfile"
+
+  build-client:
+    name: "Build the CLI"
+    uses: ./.github/workflows/build.yaml
+    with:
+      service: cli
+      docker_repository: cli
+      dockerfile: "./build/client/Dockerfile"
