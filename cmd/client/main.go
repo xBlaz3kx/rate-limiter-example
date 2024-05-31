@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	numClients = 2
-	numWorkers = 4
+	numClients int
+	numWorkers int
 )
 
 var rootCmd = &cobra.Command{
@@ -41,9 +41,15 @@ var rootCmd = &cobra.Command{
 		// Get the URL as the first argument
 		url := args[0]
 
-		// todo get and validate number of clients and workers
+		if numClients < 1 {
+			logger.Fatal("Number of clients must be greater than 0")
+		}
 
-		workerManagers := make([]*client.WorkerManager, 0)
+		if numWorkers < 1 {
+			logger.Fatal("Number of workers must be greater than 0")
+		}
+
+		workerManagers := make([]*client.WorkerManager, numClients)
 
 		for i := 0; i < numClients; i++ {
 			clientId := strconv.Itoa(i + 1)
@@ -67,6 +73,9 @@ var rootCmd = &cobra.Command{
 
 func main() {
 	cobra.OnInitialize(setupGlobalLogger)
+
+	rootCmd.Flags().IntVar(&numClients, "clients", 1, "Number of clients to spawn")
+	rootCmd.Flags().IntVar(&numWorkers, "workers", 1, "Number of workers per client")
 
 	if err := rootCmd.Execute(); err != nil {
 		zap.L().Fatal("Unable to run", zap.Error(err))

@@ -11,7 +11,7 @@ services:
 
   client:
     image: client
-    command: cli http://server:80 # --numWorkers=4 --numClients=2
+    command: cli http://server:80 --workers=4 --clients=2
     build:
       context: .
       dockerfile: ./build/client/Dockerfile
