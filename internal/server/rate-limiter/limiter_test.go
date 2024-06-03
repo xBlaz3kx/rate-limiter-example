@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
@@ -62,4 +63,27 @@ func TestNewSlidingWindowRateLimiter(t *testing.T) {
 	if limited {
 		t.Errorf("Expected false, got %v", limited)
 	}
+}
+
+func TestNewSlidingWindowRateLimiterOpts(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	zap.ReplaceGlobals(logger)
+
+	// Apply valid options
+	limitOpts := WithLimit(100)
+	durationOpt := WithDuration(time.Second * 10)
+	rateLimiter := NewSlidingWindowRateLimiter(limitOpts, durationOpt)
+	assert.Equal(t, 100, rateLimiter.config.Limit)
+	assert.Equal(t, time.Second*10, rateLimiter.config.Duration)
+
+	// Apply invalid options
+	limitOpts = WithLimit(-100)
+	rateLimiter = NewSlidingWindowRateLimiter(limitOpts)
+	assert.Equal(t, 200, rateLimiter.config.Limit)
+	assert.Equal(t, time.Second*5, rateLimiter.config.Duration)
+
+	durationOpt = WithDuration(time.Millisecond)
+	rateLimiter = NewSlidingWindowRateLimiter(durationOpt)
+	assert.Equal(t, 200, rateLimiter.config.Limit)
+	assert.Equal(t, time.Second*5, rateLimiter.config.Duration)
 }
