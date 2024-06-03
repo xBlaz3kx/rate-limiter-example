@@ -62,11 +62,9 @@ func TestHandler_ConcurrentRequests(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				t.Errorf("execution timed out")
-			}
+		<-ctx.Done()
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			t.Errorf("execution timed out")
 		}
 	}()
 

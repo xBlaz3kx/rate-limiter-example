@@ -17,24 +17,23 @@ func TestNewSlidingWindowRateLimiter(t *testing.T) {
 	zap.ReplaceGlobals(logger)
 
 	rateLimiter := NewSlidingWindowRateLimiter()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				t.Errorf("execution timed out")
-			}
+		<-ctx.Done()
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			t.Errorf("execution timed out")
 		}
 	}()
 
 	// Spawn multiple threads to test the rate limiter
-	wg := sync.WaitGroup{}
 	numRoutines := 100
+	wg := sync.WaitGroup{}
 	wg.Add(numRoutines)
-
 	requestNum := atomic.Int32{}
+
 	for i := 0; i < numRoutines; i++ {
 		go func() {
 			defer wg.Done()
@@ -42,6 +41,7 @@ func TestNewSlidingWindowRateLimiter(t *testing.T) {
 			// Make 3 requests per routine
 			for j := 0; j < 3; j++ {
 				requestNum.Add(1)
+
 				limited := rateLimiter.IsLimited("1")
 				if limited && requestNum.Load() < 200 {
 					t.Errorf("Expected false, got %v", limited)
