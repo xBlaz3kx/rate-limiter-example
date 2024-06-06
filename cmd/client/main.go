@@ -49,7 +49,7 @@ var rootCmd = &cobra.Command{
 			logger.Fatal("Number of workers must be greater than 0")
 		}
 
-		workerManagers := make([]*client.WorkerManager, numClients)
+		workerManagers := []*client.WorkerManager{}
 
 		for i := 0; i < numClients; i++ {
 			clientId := strconv.Itoa(i + 1)
