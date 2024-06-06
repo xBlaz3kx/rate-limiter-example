@@ -26,6 +26,7 @@ type clientLimit struct {
 }
 
 // SlidingWindowRateLimiter is a sliding window rate limiter that limits the number of requests per user for a given time window.
+// Note: Not exactly a sliding window implementation, but a simpler version that resets the request count after the window duration.
 type SlidingWindowRateLimiter struct {
 	config Config
 

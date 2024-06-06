@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type WorkerManager struct {
+type Manager struct {
 	wg     *sync.WaitGroup
 	logger *zap.Logger
 
@@ -22,9 +22,9 @@ type WorkerManager struct {
 	cancelFunc context.CancelFunc
 }
 
-// NewWorkerManager creates a new worker manager
-func NewWorkerManager(url, clientId string) *WorkerManager {
-	return &WorkerManager{
+// NewManager creates a new client manager
+func NewManager(url, clientId string) *Manager {
+	return &Manager{
 		clientId:   clientId,
 		url:        url,
 		logger:     zap.L().Named(fmt.Sprintf("manager-%s", clientId)),
@@ -33,18 +33,18 @@ func NewWorkerManager(url, clientId string) *WorkerManager {
 	}
 }
 
-// SpawnWorkers starts the worker manager with the provided number of workers. It blocks until all workers are done.
-func (wm *WorkerManager) SpawnWorkers(ctx context.Context, numWorkers int) {
-	wm.logger.Info("Starting worker manager", zap.Int("numWorkers", numWorkers))
+// SpawnClients starts the worker manager with the provided number of workers. Each worker runs in its own goroutine.
+func (wm *Manager) SpawnClients(num int) {
+	wm.logger.Info("Starting worker manager", zap.Int("num", num))
 
-	wm.wg.Add(numWorkers)
+	wm.wg.Add(num)
 
 	// Create a context for the workers
 	workerContext, cancel := context.WithCancel(context.Background())
 	wm.cancelFunc = cancel
 
 	// Spawn the workers
-	for i := 0; i < numWorkers; i++ {
+	for i := 0; i < num; i++ {
 		workerHttpClient := newHttpClient(wm.clientId, wm.url)
 		w := newWorker(workerHttpClient)
 
@@ -56,7 +56,8 @@ func (wm *WorkerManager) SpawnWorkers(ctx context.Context, numWorkers int) {
 	}
 }
 
-func (wm *WorkerManager) Shutdown() {
+// Shutdown cancels all workers' context and waits for them to finish executing.
+func (wm *Manager) Shutdown() {
 	wm.logger.Info("Shutting down manager")
 
 	// Send a cancellation signal to the workers

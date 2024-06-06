@@ -49,15 +49,15 @@ var rootCmd = &cobra.Command{
 			logger.Fatal("Number of workers must be greater than 0")
 		}
 
-		workerManagers := []*client.WorkerManager{}
+		clientManagers := []*client.Manager{}
 
 		for i := 0; i < numClients; i++ {
 			clientId := strconv.Itoa(i + 1)
 
-			workerManager := client.NewWorkerManager(url, clientId)
-			workerManager.SpawnWorkers(ctx, numWorkers)
+			workerManager := client.NewManager(url, clientId)
+			workerManager.SpawnClients(numWorkers)
 
-			workerManagers = append(workerManagers, workerManager)
+			clientManagers = append(clientManagers, workerManager)
 		}
 
 		// Receive a shutdown signal
@@ -65,7 +65,7 @@ var rootCmd = &cobra.Command{
 		cancel()
 
 		// Shutdown all worker managers
-		for _, wm := range workerManagers {
+		for _, wm := range clientManagers {
 			wm.Shutdown()
 		}
 	},
